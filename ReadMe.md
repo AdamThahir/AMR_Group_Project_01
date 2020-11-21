@@ -8,6 +8,12 @@ We use the following command to launch ros_gazebo
 roslaunch turtlebot3_gazebo turtlebot3_world1.launch
 ```
 
+A copy of 'turtlebot3_world1.launch' can be found here. But the actual file is located in:
+
+```
+~/catkin_ws/src/turtlebot3_simulations/turtlebot3_gazebo/launch/
+```
+
 Once you have roscore and roslaunch (above command) running. You can run the script using:
 
 ```
