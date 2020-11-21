@@ -3,6 +3,8 @@ from sensor_msgs.msg import LaserScan, Imu
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 
+from modules.KalmanFilter import KalmanFilter
+
 class Agent:
     def __init__(self, nodeName='amr', queueSize=10):
         """
@@ -81,6 +83,8 @@ class Agent:
 
         # print (ObjectDistanceBearing)
         self.PrintObjectDistanceBearing(ObjectDistanceBearing)
+
+        # [MOVE] move the bot
         self.move_spiral()
 
         return ObjectDistanceBearing
