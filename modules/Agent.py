@@ -4,9 +4,11 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 
 from modules.KalmanFilter import KalmanFilter
+from modules.ParticleFilter import Particle
+import numpy as np
 
 class Agent:
-    def __init__(self, nodeName='amr', queueSize=10):
+    def __init__(self, filter_type = 'kalman', nodeName='amr', queueSize=10):
         """
         Initiation for the bot. Setting defaults and adding Subscribers/
         Publishers. 
@@ -22,6 +24,13 @@ class Agent:
         self.spiral_radius = self.DEFAULT_SPIRAL_RADIUS
         self.print_message = False
 
+        #self.
+
+        if ('kalman' in filter_type):
+        	self.filter = KalmanFilter()
+        else :
+        	self.filter = Particle()
+
         rospy.init_node(nodeName)
         
         # Subscribers
@@ -30,6 +39,7 @@ class Agent:
 
         # Publisher
         self.publisher = rospy.Publisher('cmd_vel', Twist, queue_size=queueSize)
+
 
         self.move = Twist()
 
@@ -65,6 +75,13 @@ class Agent:
         self.current_x = msg.pose.pose.position.x
         self.current_y = msg.pose.pose.position.y
         self.current_z = msg.pose.pose.position.z
+
+        print (self.current_x, self.current_y, self.current_z)
+        Z = np.matrix([self.current_x, self.current_y,self.current_z]).T
+
+        self.filter.update(Z)
+        filter_X = self.filter.predict()
+        print(filter_X)
 
         pass
 
