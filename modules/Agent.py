@@ -4,8 +4,10 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 
 from modules.KalmanFilter import KalmanFilter
-from modules.ParticleFilter import Particle
+from modules.ParticleFilter import ParticleFilter
 import numpy as np
+from numpy.random import randn
+import scipy.stats
 
 class Agent:
     def __init__(self, filter_type = 'kalman', nodeName='amr', queueSize=10):
@@ -23,13 +25,14 @@ class Agent:
         self.DEFAULT_SPIRAL_RADIUS = 10
         self.spiral_radius = self.DEFAULT_SPIRAL_RADIUS
         self.print_message = False
+        self.filter_type = filter_type
 
         #self.
 
         if ('kalman' in filter_type):
         	self.filter = KalmanFilter()
         else :
-        	self.filter = Particle()
+        	self.filter = ParticleFilter()
 
         rospy.init_node(nodeName)
         
@@ -76,14 +79,37 @@ class Agent:
         self.current_y = msg.pose.pose.position.y
         self.current_z = msg.pose.pose.position.z
 
-        print (self.current_x, self.current_y, self.current_z)
-        Z = np.matrix([self.current_x, self.current_y,self.current_z]).T
+        if (self.filter_type == 'kalman'):
 
-        self.filter.update(Z)
-        filter_X = self.filter.predict()
-        print(filter_X)
+            # print (self.current_x, self.current_y, self.current_z)
+            Z = np.matrix([self.current_x, self.current_y,self.current_z]).T
 
-        pass
+            self.filter.update(Z)
+            filter_X = self.filter.predict()
+
+            with open('res_measured_kalman.csv', 'a') as f:
+                f.write(f'{self.current_x};{self.current_y};{self.current_z}\n')
+
+            with open('res_predicted_kalman.csv', 'a') as f:
+                f.write(f'{filter_X[0]};{filter_X[1]};{filter_X[2]}\n')
+
+        else :          
+            self.filter.predict([self.x_speed, (self.x_speed/self.spiral_radius)])
+            self.filter.update([self.current_x, self.current_y])
+
+            # if there are not much effieicnt particles
+            if(self.filter.neff() < self.filter.N/2):
+                inds = self.filter.systematic_resample()
+                self.filter.resample_from_index(inds)
+
+            mu, var = self.filter.estimate()
+            with open('res_pred_part.csv', 'a') as f:
+                f.write(f'{mu[0]};{mu[1]}\n')
+
+            with open('res_measured_part.csv', 'a') as f:
+                f.write(f'{self.current_x};{self.current_y}\n')
+
+
 
     def findDistanceBearing(self, msg):
         """

@@ -1,10 +1,29 @@
 import numpy as np
-from numpy.random import uniform
+from numpy.random import uniform, randn
+import scipy
+from numpy.linalg import norm
 
-class Particle:
+
+class ParticleFilter:
     # Main concepts obtained from https://github.com/Kalman-and-Bayesian-Filters-in-Python/
     def __init__(self):
-        pass
+        self.N = 10
+        self.mean = [0,0,0]
+        self.median = 0
+        self.std = [1,1,1]
+        self.iter = 0
+        # self.is_first = True
+        self.deleted_particles = 0
+        self.particles = []
+        self.weights = None
+
+        self.particle_mean = None
+        self.particle_var = None
+        self.R = .1
+        self.landmarks = np.array([[0,0], [3,3], [-3,-3], [-3,3], [3,-3], [5,5], [-5,-5], [-5,5], [5,-5]])
+
+        self.create_gaussian_particles()
+
 
     def create_uniform_particles(self, x_range, y_range, hdg_range, N):
         particles = np.empty((N, 3))
@@ -12,61 +31,88 @@ class Particle:
         particles[:, 1] = uniform(y_range[0], y_range[1], size=N)
         particles[:, 2] = uniform(hdg_range[0], hdg_range[1], size=N)
         particles[:, 2] %= 2 * np.pi
+
+        self.particles = particles
         return particles
 
-    def create_gaussian_particles(mean, std, N):
-        particles = np.empty((N, 3))
-        particles[:, 0] = mean[0] + (randn(N) * std[0])
-        particles[:, 1] = mean[1] + (randn(N) * std[1])
-        particles[:, 2] = mean[2] + (randn(N) * std[2])
-        particles[:, 2] %= 2 * np.pi
-        return particles
-
-    def predict(self, particles, u, std, dt=1.):
-        N = len(particles)
-        
-        particles[:, 2] += u[0] + (randn(N) * std[0])
+    def create_gaussian_particles(self):
+        # the particles with given mu and std are created
+        # and their weights are initialized
+        particles = np.empty((self.N, 3))
+        particles[:, 0] = self.mean[0] + (randn(self.N) * self.std[0])
+        particles[:, 1] = self.mean[1] + (randn(self.N) * self.std[1])
+        particles[:, 2] = self.mean[2] + (randn(self.N) * self.std[2])
         particles[:, 2] %= 2 * np.pi
 
-
-        dist = (u[1] * dt) + (randn(N) * std[1])
-        particles[:, 0] += np.cos(particles[:, 2]) * dist
-        particles[:, 1] += np.sin(particles[:, 2]) * dist
-
+        self.particles = particles
+        self.weights = np.zeros(self.particles.shape[0])
         return particles
 
-    def update(self, particles, weights, z, R, landmarks):
-        for i, landmark in enumerate(landmarks):
-            distance = np.linalg.norm(particles[:, 0:2] - landmark, axis=1)
-            weights *= scipy.stats.norm(distance, R).pdf(z[i])
+    def predict(self, u, dt=1.):       
+        # particles' heading are updated
+        self.particles[:, 2] += u[0] + (randn(self.N) * self.std[0])
+        self.particles[:, 2] %= 2 * np.pi
 
-        weights += 1.e-300     
-        weights /= sum(weights)
+        # particles move in the direction
+        # the heading is given according to robot movement
+        dist = (u[1] * dt) + (randn(self.N) * self.std[1])
+        self.particles[:, 0] += np.cos(self.particles[:, 2]) * dist
+        self.particles[:, 1] += np.sin(self.particles[:, 2]) * dist
 
-    def estimate(self, particles, weights):
-        pos = particles[:, 0:2]
-        mean = np.average(pos, weights=weights, axis=0)
-        var  = np.average((pos - mean)**2, weights=weights, axis=0)
+        return self.particles
 
-        return mean, var
+    def update(self, current_pos):
+        # the weigths are updated according to the importance (the distance)
+        # the closer the particle is, the greater the weight is
 
-    def simple_resample(self, particles, weights):
-        N = len(particles)
-        cumulative_sum = np.cumsum(weights)
-        cumulative_sum[-1] = 1. # avoid round-off error
-        indexes = np.searchsorted(cumulative_sum, random(N))
+        # .1 here is standard error
+        # we calculate the distance between robot position to each landmark
+        # to be able to assess how good the particles are
+        zs = (norm(self.landmarks-[current_pos[0], current_pos[1]],axis=1) + \
+                randn(len(self.landmarks))*.1)
 
-        # resample according to indexes
-        particles[:] = particles[indexes]
-        weights.fill(1.0 / N)
+        # the weights are calculated according to the position of particles
+        # to each landmark
+        for i, landmark in enumerate(self.landmarks):
+            distance = np.linalg.norm(self.particles[:, 0:2] - landmark, axis=1)
+            self.weights *= scipy.stats.norm(distance, self.R).pdf(zs[i])
 
-    def neff(self, weights):
-        return 1. / np.sum(np.square(weights))
+        self.weights += 1.e-300   
+        self.weights /= sum(self.weights)
 
-    def resample_from_index(self, particles, weights, indexes):
-        particles[:] = particles[indexes]
-        weights.resize(len(particles))
-        weights.fill (1.0 / len(weights))
+    def estimate(self):
+        # computes the mean and varaince of the particles
+        # we plot mean value to compare localization value with the real position
+        pos = self.particles[:, 0:2]
+        self.particle_mean = np.average(pos, weights=self.weights, axis=0)
+        self.particle_var  = np.average((pos - self.particle_mean)**2, weights=self.weights, axis=0)
 
-        return particles, weights
+        return self.particle_mean, self.particle_var
+
+    def neff(self):
+        # This is to measure efficiency
+        # if this value is lower than our threshold (here we use N/2), then
+        # we resample the particles
+        return 1. / np.sum(np.square(self.weights))
+
+    def resample_from_index(self, indexes):
+        self.particles[:] = self.particles[indexes]
+        self.weights.resize(len(self.particles))
+        self.weights.fill (1.0 / len(self.weights))
+
+        return self.particles, self.weights
     
+    def systematic_resample(self):
+        pos = (np.arange(self.N) + randn(self.N)) / self.N
+        ins = np.zeros(self.N, 'i') #int
+        cumulative_sum = np.cumsum(self.weights)
+        i = 0
+        j = 0
+        while i < self.N and j < self.N:
+            if (pos[i] < cumulative_sum[j]):
+                ins[i] = j
+                i+=1
+            else :
+                j+=1
+
+        return ins

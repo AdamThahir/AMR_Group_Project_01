@@ -2,4 +2,6 @@ from modules.Agent import *
 
 if __name__ == "__main__":
     
-    agent = Agent('kalman')
+    # Uncomment this line if you like to run kalman filter
+    # agent = Agent('kalman')
+    agent = Agent('particle')

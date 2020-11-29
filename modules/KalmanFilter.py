@@ -5,38 +5,43 @@ from numpy.linalg import inv, det
 class KalmanFilter:
     # Main concepts obtained from https://arxiv.org/pdf/1204.0375.pdf
     def __init__(self):
-        pass
+        dt = 0.01
+        sensor_count = 3
+        self.X = np.matrix([[0.0], [0.0], [0.0]])
+        self.P = np.matrix(np.identity(self.X.shape[0]))
+        self.A = np.matrix(np.identity(self.X.shape[0]))
 
-    def predict (self, X, P, A, Q, B, U):
-        X = dot(A, X) + dot(B, U)
-        P = dot(A, dot(P, A.T)) + Q
-        return (X, P)
+        self.U = np.matrix(np.zeros((self.X.shape[0],1)))
+        self.H = np.matrix(np.identity(self.X.shape[0]))
+        self.R = np.matrix(np.identity(sensor_count))
+        self.I = np.matrix(np.identity(self.X.shape[0]))
 
-    def update(self, X, P, Y, H, R):
-        IM = dot(H, X)
-        IS = R + dot(H, dot(P, H.T))
-        K = dot(P, dot(H.T, inv(IS)))
-        X = X + dot(K, (Y-IM))
-        P = P - dot(K, dot(IS, K.T))
-        LH = self.gauss_df(Y, IM, IS)
+        self.R *= dt
+        self.is_first = True
 
-        return (X, P, K, IM, IS, LH)
 
-    def gauss_df(self, X, M, S):
-        if M.shape()[1] == 1:
-            DX = X - tile(M, X.shape()[1])
-            E = 0.5 * np.sum(DX * (dot(inv(S), DX)), axis=0)
-            E = E + 0.5 * M.shape()[0] * log(2 * np.pi) + 0.5 * log(det(S))
-            P = exp(-E)
-        elif X.shape()[1] == 1:
-            DX = tile(X, M.shape()[1]) - M
-            E = 0.5 * np.sum(DX * (dot(inv(S), DX)), axis=0)
-            E = E + 0.5 * M.shape()[0] * log(2 * np.pi) + 0.5 * log(det(S))
-            P = exp(-E)
-        else:
-            DX = X - M
-            E = 0.5 * dot(DX.T, dot(inv(S), DX))
-            E = E + 0.5 * M.shape()[0] * log(2 * np.pi) + 0.5 * log(det(S))
-            P = exp(-E)
-        
-        return (P[0], E[0])
+    def predict (self):
+        X = self.A * self.X + self.U
+        P = self.A * self.P * self.A.T
+
+        self.X = X
+        self.P = P
+
+        return X
+
+    def update(self, Z):
+        if (self.is_first):
+            self.X = Z
+            self.is_first = False
+
+        # Z contains the sensor values
+
+        W = Z - self.H * self.X
+        S = self.H * self.P * self.H.T + self.R
+        K = self.P * self.H.T * S.I
+        X = self.X + K*W
+ 
+        self.X = X
+
+        P = (self.I - K * self.H) * self.P
+        self.P = P
