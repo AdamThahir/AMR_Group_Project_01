@@ -8,7 +8,13 @@ We use the following command to launch ros_gazebo
 roslaunch turtlebot3_gazebo turtlebot3_world1.launch
 ```
 
-A copy of 'turtlebot3_world1.launch' can be found here. But the actual file is located in:
+For the seconds project, we did the same things but created a world2.
+
+```
+roslaunch turtlebot3_gazebo turtlebot3_world2.launch
+```
+
+A copy of 'turtlebot3_world1.launch' can be found here. But the actual file is located in (same applies to world2):
 
 ```
 ~/catkin_ws/src/turtlebot3_simulations/turtlebot3_gazebo/launch/
