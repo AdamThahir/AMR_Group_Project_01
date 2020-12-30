@@ -45,3 +45,173 @@ class KalmanFilter:
 
         P = (self.I - K * self.H) * self.P
         self.P = P
+
+
+class EKF_SLAM:
+    # Main concepts obtained from https://github.com/DevonMorris
+    def __init__(self, initialPosition, nObjects, noise_covariance):
+
+        inf = 1e15
+
+        self.mu = np.zeros(3*nObjects + 3)
+        self.mu[0:3] = initialPosition
+        self.cov = np.matrix(inf * np.eye(3*nObjects + 3))
+        self.cov[0,0] = 0
+        self.cov[1,1] = 0
+        self.cov[2,2] = 0
+
+        self.seen = [False for i in range(nObjects)]
+
+        self.nObjects = nObjects
+        self.R = noise_covariance
+
+    def filter(self, z, u):
+        """filters the slam problem over a single time step"""
+
+        self.mu[0:3] = self.non_linear_state_transition_handler(self.mu[0:3],u)
+        Fx = np.matrix(np.zeros((3, 3 * self.nObjects + 3)))
+        Fx[0,0] = 1
+        Fx[1,1] = 1
+        Fx[2,2] = 1
+        
+        F = np.matrix(np.eye(3 * self.nObjects +3)) + Fx.T * self.jacobian_state_state_handler(self.mu[0:3],u) * Fx
+        G = 5 * self.jacobian_state_input_handler(self.mu[0:3], u)
+        
+        self.cov = F * self.cov * F.T + Fx.T * G * self.input_covariance_handler(u) * G.T * Fx
+        if z.size == 0:
+            return np.copy(self.mu), np.copy(self.cov)
+        
+        l = z[:,2]
+
+        for j,s in enumerate(l):
+            #Measurement Update
+            s = int(s)
+            if self.seen[s] == False:
+                self.mu[3 * (s + 1)] = self.mu[0] + z[j, 0] * np.cos(z[j, 1] + self.mu[2])
+                self.mu[3 * (s + 1) + 1] = self.mu[1] + z[j, 0] * np.sin(z[j, 1] + self.mu[2])
+                self.mu[3 * (s + 1) + 2] = s
+                self.seen[s] = True
+                
+            y = self.mu[3 * (s + 1):3 * (s + 1) + 3]
+            z_hat = self.non_linear_measurement_model_handler(self.mu[:3], y, u)
+
+            Fxj = np.matrix(np.zeros((6, 3 * self.nObjects + 3)))
+            Fxj[0,0] = 1
+            Fxj[1,1] = 1
+            Fxj[2,2] = 1
+            Fxj[3,3 * (s + 1)] = 1
+            Fxj[4, 3 * (s + 1) + 1] = 1
+            Fxj[5, 3 * (s + 1) + 2] = 1
+            
+            H = self.jacobian_measurement_state_handler(self.mu[:3],y,u) * Fxj
+            K = self.cov * H.T * (la.inv(H * self.cov * H.T + self.R))
+
+            innovation = z[j] - z_hat
+            if innovation[1] > np.pi:
+                innovation[1] -= 2 * np.pi
+            elif innovation[1] < -np.pi:
+                innovation += 2 * np.pi
+            innovation = np.matrix(innovation).T
+            update = np.array(K * innovation).flatten()
+            self.mu += update
+            self.cov = (np.eye(3 * self.nObjects + 3) - K * H).dot(self.cov)
+            
+        return np.copy(self.mu), np.copy(self.cov)
+
+
+    def non_linear_state_transition_handler(self, x, u):
+        """function handle nonlinear state transition"""
+        xp = np.zeros_like(x)
+        v = u[0]
+        w = u[1]
+        stheta = np.sin(x[2])
+        ctheta = np.cos(x[2])
+        sthetap = np.sin(x[2] + dt*w)
+        cthetap = np.cos(x[2] + dt*w)
+
+        xp[0] = x[0] - v/w*stheta + v/w*sthetap
+        xp[1] = x[1] + v/w*ctheta - v/w*cthetap
+        xp[2] = x[2] + w*dt
+        return xp
+
+    def non_linear_measurement_model_handler(self, x, y, u):
+        """function handle nonlinear measurement model"""
+        zp = np.zeros(3)
+    
+        zp[0] = np.linalg.norm(x[0:2] - y[0:2])
+        zp[1] = np.arctan2(y[1] - x[1], y[0] - x[0]) - x[2]
+        if zp[1] > np.pi:
+            zp[1] -= 2*np.pi
+        elif zp[1] < -np.pi:
+            zp[1] += 2*np.pi
+        zp[2] = y[2]
+        return zp
+
+    def jacobian_state_state_handler(self, x, u):
+        """function handle Jacobian of state w/ respect to state"""
+        n = x.shape[0]
+        v = u[0]
+        w = u[1]
+        stheta = np.sin(x[2])
+        ctheta = np.cos(x[2])
+        sthetap = np.sin(x[2] + dt*w)
+        cthetap = np.cos(x[2] + dt*w)
+        
+        F = np.matrix(np.zeros((n,n)))
+        F[0,2] = -v/w*ctheta + v/w*cthetap
+        F[1,2] = -v/w*stheta + v/w*sthetap
+        return F
+
+    def jacobian_state_input_handler(self, x, u):
+        """function handle Jacobian of state w/ respect to input"""
+        n = x.shape[0]
+        k = u.shape[0]
+        v = u[0]
+        w = u[1]
+        stheta = np.sin(x[2])
+        ctheta = np.cos(x[2])
+        sthetap = np.sin(x[2] + dt*w)
+        cthetap = np.cos(x[2] + dt*w)
+        
+        G = np.matrix(np.zeros((n,k)))
+        G[0,0] = (-stheta + sthetap)/w
+        G[0,1] = v*(stheta-sthetap)/(w**2) + v*(ctheta*dt)/w
+        G[1,0] = (ctheta - cthetap)/w
+        G[1,1] = -v*(ctheta - cthetap)/(w**2) + v*(stheta*dt)/w
+        G[2,1] = dt
+        return G
+
+    def jacobian_measurement_state_handler(self, x, y, u):
+        """function handle Jacobian of measurement w/ respect to state"""
+        H = np.matrix(np.zeros((3,6)))
+        dx = y[0] - x[0]
+        dy = y[1] - x[1]
+        q = (y[0] - x[0])**2 + (y[1] - x[1])**2
+        sq = np.sqrt(q)
+        H[0,0] = -(dx)/sq
+        H[0,1] = -(dy)/sq
+        H[0,2] = 0
+        H[0,3] = dx/sq
+        H[0,4] = dy/sq
+        H[0,5] = 0
+        H[1,0] = dy/q
+        H[1,1] = -dx/q
+        H[1,2] = -1
+        H[1,3] = -dy/q
+        H[1,4] = dx/q
+        H[1,5] = 0
+        H[2,5] = 1
+        return H
+
+    def input_covariance_handler(self, u):
+        """function handle Covariance of input"""
+        k = u.shape[0]
+        v = u[0]
+        w = u[1]
+        Q = np.matrix(np.zeros((k,k)))
+        Q[0,0] = alpha[0]*v**2 + alpha[1]*w**2
+        Q[1,1] = alpha[2]*v**2 + alpha[3]*w**2
+        return Q
+
+
+
