@@ -120,13 +120,13 @@ class Agent:
         ObjectDistanceBearing = {} # Key: bearing. Value: Distance at given angle.
 
         # we want a total of 120 degrees. I split it 60 clockwise, 60 anticlockwise
-        for i in range(60): # clockwise 30
+        for i in range(60): # clockwise 60
             sight = msg.ranges[i]
             if not sight == float('inf'):
                 bearing = 360 - i # bearing is clockwise, angle here is anticlockwise. 
                 ObjectDistanceBearing[bearing] = sight
 
-        for i in range(300, 360): # anticlockwise 30
+        for i in range(300, 360): # anticlockwise 60
             sight = msg.ranges[i]
             if not sight == float('inf'):
                 bearing = 360 - i # bearing is clockwise, angle here is anticlockwise.
