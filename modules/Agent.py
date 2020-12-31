@@ -8,6 +8,7 @@ from modules.ParticleFilter import ParticleFilter
 import numpy as np
 from numpy.random import randn
 import scipy.stats
+import time
 
 class Agent:
     def __init__(self, filter_type = 'kalman', nodeName='amr', queueSize=10):
@@ -27,7 +28,8 @@ class Agent:
         self.print_message = False
         self.filter_type = filter_type
 
-        #self.
+        self.move_switch = False
+        self.timer_start = time.time()
 
         if ('kalman' in filter_type):
         	self.filter = KalmanFilter()
@@ -111,6 +113,8 @@ class Agent:
             objectLocations[:,2] = np.arange(self.filter.nObjects)
 
             
+            with open('slam_res_measured_part.csv', 'a') as f:
+                f.write(f'{self.current_x};{self.current_y}\n')
 
             X_hat = []
             Conv_hat = []
@@ -145,14 +149,29 @@ class Agent:
                 X_hat.append(x_hat)
                 Conv_hat.append(cov)
             
-                with open('slam_res_x_hat_part.csv', 'a') as f:
-                    f.write(f'{x_hat[0]};{x_hat[1]}\n')
+            with open('slam_res_x_hat_0_part.csv', 'a') as f:
+                f.write(f'{X_hat[0][0]};{X_hat[0][1]}\n')
 
-                with open('slam_res_conv_part.csv', 'a') as f:
-                    f.write(f'{Conv_hat}\n')
+            with open('slam_res_x_hat_1_part.csv', 'a') as f:
+                f.write(f'{X_hat[1][0]};{X_hat[1][1]}\n')
 
-                with open('slam_res_measured_part.csv', 'a') as f:
-                    f.write(f'{self.current_x};{self.current_y}\n')
+            # print (f'shape: {np.asarray(X_hat).shape}')
+
+            avg = np.zeros((len(X_hat), 2))
+            for i in range(len(X_hat)):
+                avg[i][0] += X_hat[i][0]
+                avg[i][1] += X_hat[i][1]
+
+            for i in range(len(X_hat)):
+                avg[i][0] /= len(X_hat)
+                avg[i][1] /= len(X_hat)
+
+            with open('slam_res_x_hat_avg_part.csv', 'a') as f:
+                f.write(f'{avg[0][0]};{avg[0][1]}\n')
+
+            with open('slam_res_conv_part.csv', 'a') as f:
+                f.write(f'{Conv_hat}\n')
+
             
         else :          
             self.filter.predict([self.x_speed, (self.x_speed/self.spiral_radius)])
@@ -187,11 +206,24 @@ class Agent:
                 bearing = 360 - i # bearing is clockwise, angle here is anticlockwise. 
                 ObjectDistanceBearing[bearing] = sight
 
+            if (i <= 30 and sight < 0.6):
+                self.x_speed *= -1
+            elif self.x_speed < 0:
+                self.x_speed *= -1
+
+
+
+
         for i in range(300, 360): # anticlockwise 60
             sight = msg.ranges[i]
             if not sight == float('inf'):
                 bearing = 360 - i # bearing is clockwise, angle here is anticlockwise.
                 ObjectDistanceBearing[bearing] = sight
+
+            if (i >= 330 and sight < 0.6):
+                self.x_speed *= -1
+            elif self.x_speed < 0:
+                self.x_speed *= -1
 
 
 
@@ -199,7 +231,10 @@ class Agent:
         self.PrintObjectDistanceBearing(ObjectDistanceBearing)
 
         # [MOVE] move the bot
-        self.move_spiral()
+        if not self.move_switch:
+            self.move_spiral()
+        else:
+            self.move_line()
 
         return ObjectDistanceBearing
 
@@ -216,6 +251,23 @@ class Agent:
             self.spiral_radius = self.DEFAULT_SPIRAL_RADIUS * 0.85
         # print (self.spiral_radius)
         self.publisher.publish(self.move)
+
+        if (time.time() - self.timer_start) >= 10:
+            self.move_switch = True
+            self.timer_start = time.time()
+
+
+    def move_line(self):
+        """
+        Move the Bot in an line kind of path.
+        """
+        self.move.linear.x = self.x_speed
+
+        self.publisher.publish(self.move)
+
+        if (time.time() - self.timer_start) >= 10:
+            self.move_switch = False
+            self.timer_start = time.time()
 
     def PrintObjectDistanceBearing(self, objectDistanceBearing, nearestN=10):
         if not self.print_message:
