@@ -67,7 +67,61 @@ class EKF_SLAM:
         self.nObjects = nObjects
         self.R = noise_covariance
 
+        # I want to get the predictions here, but I'm not too sure how this could work.
+        # Working on preprocessing some of the information, but not able to figure it out yet.
+        objectLocations = np.zeros((self.nObjects, 3))
+        objectLocations[:,0] = np.random.uniform(low=-20., high=20., size=self.nObjects)
+        objectLocations[:,1] = np.random.uniform(low=-20., high=20., size=self.nObjects)
+        objectLocations[:,2] = np.arange(self.nObjects)
+
+        self.objectLocations = objectLocations
+        self.alpha = np.pi/4
+
+        ''' ????
+        dt = .1
+        t = np.arange(0,40.1, dt)
+        v = 1 + .5*np.cos(.4*np.pi*t)
+        w = -.2 + 2*np.cos(1.2*np.pi*t)
+
+        U = np.column_stack([v, w])''' 
+
+
+
         self.dt = .1
+
+    def get_U(self):
+        dt = self.dt
+        t = np.arange(0,10.1, dt)
+        v = 1 + .5*np.cos(.4*np.pi*t)
+        w = -.2 + 2*np.cos(1.2*np.pi*t)
+
+        U = np.column_stack([v, w])
+
+        return U
+
+    def get_Z(self, X):
+        Y = self.objectLocations
+        
+        Z = []
+        
+        for i in range(Y.shape[0]):
+            z = np.zeros(3)
+            z[0] = np.linalg.norm(X[:2] - Y[i,:2])
+            z[1] = np.arctan2(Y[i,1] - X[1], Y[i,0] - X[0]) - X[2]
+            
+            z += np.random.multivariate_normal(np.zeros(3), self.R)
+            # wrap relative bearing
+            if z[1] > np.pi:
+                z[1] = z[1] - 2*np.pi
+            if z[1] < -np.pi:
+                z[1] = z[1] + 2*np.pi
+            z[2] = Y[i,2]
+            if np.abs(z[1]) < self.alpha/2:
+                Z.append(z)
+        
+        Z = np.array(Z) 
+
+        return Z
 
     def filter(self, z, u):
         """filters the slam problem over a single time step"""
