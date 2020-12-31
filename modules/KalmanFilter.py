@@ -2,10 +2,12 @@ import numpy as np
 from numpy import dot, tile, linalg, log, exp
 from numpy.linalg import inv, det
 
+import numpy.linalg as la
+
 class KalmanFilter:
     # Main concepts obtained from https://arxiv.org/pdf/1204.0375.pdf
     def __init__(self):
-        dt = 0.01
+        self.dt = 0.01
         sensor_count = 3
         self.X = np.matrix([[0.0], [0.0], [0.0]])
         self.P = np.matrix(np.identity(self.X.shape[0]))
@@ -16,7 +18,7 @@ class KalmanFilter:
         self.R = np.matrix(np.identity(sensor_count))
         self.I = np.matrix(np.identity(self.X.shape[0]))
 
-        self.R *= dt
+        self.R *= self.dt
         self.is_first = True
 
 
@@ -64,6 +66,8 @@ class EKF_SLAM:
 
         self.nObjects = nObjects
         self.R = noise_covariance
+
+        self.dt = .1
 
     def filter(self, z, u):
         """filters the slam problem over a single time step"""
@@ -126,12 +130,12 @@ class EKF_SLAM:
         w = u[1]
         stheta = np.sin(x[2])
         ctheta = np.cos(x[2])
-        sthetap = np.sin(x[2] + dt*w)
-        cthetap = np.cos(x[2] + dt*w)
+        sthetap = np.sin(x[2] + self.dt*w)
+        cthetap = np.cos(x[2] + self.dt*w)
 
         xp[0] = x[0] - v/w*stheta + v/w*sthetap
         xp[1] = x[1] + v/w*ctheta - v/w*cthetap
-        xp[2] = x[2] + w*dt
+        xp[2] = x[2] + w*self.dt
         return xp
 
     def non_linear_measurement_model_handler(self, x, y, u):
@@ -154,8 +158,8 @@ class EKF_SLAM:
         w = u[1]
         stheta = np.sin(x[2])
         ctheta = np.cos(x[2])
-        sthetap = np.sin(x[2] + dt*w)
-        cthetap = np.cos(x[2] + dt*w)
+        sthetap = np.sin(x[2] + self.dt*w)
+        cthetap = np.cos(x[2] + self.dt*w)
         
         F = np.matrix(np.zeros((n,n)))
         F[0,2] = -v/w*ctheta + v/w*cthetap
@@ -170,15 +174,15 @@ class EKF_SLAM:
         w = u[1]
         stheta = np.sin(x[2])
         ctheta = np.cos(x[2])
-        sthetap = np.sin(x[2] + dt*w)
-        cthetap = np.cos(x[2] + dt*w)
+        sthetap = np.sin(x[2] + self.dt*w)
+        cthetap = np.cos(x[2] + self.dt*w)
         
         G = np.matrix(np.zeros((n,k)))
         G[0,0] = (-stheta + sthetap)/w
-        G[0,1] = v*(stheta-sthetap)/(w**2) + v*(ctheta*dt)/w
+        G[0,1] = v*(stheta-sthetap)/(w**2) + v*(ctheta*self.dt)/w
         G[1,0] = (ctheta - cthetap)/w
-        G[1,1] = -v*(ctheta - cthetap)/(w**2) + v*(stheta*dt)/w
-        G[2,1] = dt
+        G[1,1] = -v*(ctheta - cthetap)/(w**2) + v*(stheta*self.dt)/w
+        G[2,1] = self.dt
         return G
 
     def jacobian_measurement_state_handler(self, x, y, u):
@@ -209,6 +213,8 @@ class EKF_SLAM:
         v = u[0]
         w = u[1]
         Q = np.matrix(np.zeros((k,k)))
+
+        alpha = np.array([.1, .01, .01, .1])
         Q[0,0] = alpha[0]*v**2 + alpha[1]*w**2
         Q[1,1] = alpha[2]*v**2 + alpha[3]*w**2
         return Q

@@ -88,10 +88,10 @@
       <heading_deg>0</heading_deg>
     </spherical_coordinates>
     <state world_name='default'>
-      <sim_time>331 724000000</sim_time>
-      <real_time>111 359183431</real_time>
-      <wall_time>1609352919 956524543</wall_time>
-      <iterations>111122</iterations>
+      <sim_time>482 291000000</sim_time>
+      <real_time>150 862418572</real_time>
+      <wall_time>1609407700 947231164</wall_time>
+      <iterations>150567</iterations>
       <model name='ground_plane'>
         <pose>0 0 0 0 -0 0</pose>
         <scale>1 1 1</scale>
@@ -103,83 +103,83 @@
         </link>
       </model>
       <model name='unit_cylinder_p1'>
-        <pose>1e-06 1e-06 0.499992 1e-06 1e-06 0</pose>
+        <pose>-0 0 0.499998 -1e-06 -1e-06 0</pose>
         <scale>1 1 1</scale>
         <link name='link'>
-          <pose>1e-06 1e-06 0.499992 1e-06 1e-06 0</pose>
+          <pose>-0 0 0.499998 -1e-06 -1e-06 0</pose>
           <velocity>0 0 0 0 -0 0</velocity>
           <acceleration>0 0 -9.8 0 -0 0</acceleration>
           <wrench>0 0 -9.8 0 -0 0</wrench>
         </link>
       </model>
       <model name='unit_cylinder_p1_clone'>
-        <pose>-3.88856 -2.87252 0.5 0 -0 0</pose>
+        <pose>-4 -3 0.499998 -0 -0 -0</pose>
         <scale>1 1 1</scale>
         <link name='link'>
-          <pose>-3.88856 -2.87252 0.5 0 -0 0</pose>
+          <pose>-4 -3 0.499998 -0 -0 -0</pose>
           <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
+          <acceleration>0 0 -9.8 0 -0 0</acceleration>
+          <wrench>0 0 -9.8 0 -0 0</wrench>
         </link>
       </model>
       <model name='unit_cylinder_p1_clone_0'>
-        <pose>2.02895 3.97235 0.5 0 -0 0</pose>
+        <pose>2 4 0.499992 1e-06 1e-06 0</pose>
         <scale>1 1 1</scale>
         <link name='link'>
-          <pose>2.02895 3.97235 0.5 0 -0 0</pose>
+          <pose>2 4 0.499992 1e-06 1e-06 0</pose>
           <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
+          <acceleration>0 0 -9.8 0 -0 0</acceleration>
+          <wrench>0 0 -9.8 0 -0 0</wrench>
         </link>
       </model>
       <model name='unit_cylinder_p1_clone_1'>
-        <pose>5.00885 0.063156 0.5 0 -0 0</pose>
+        <pose>5 -0 0.499992 0 -0 0</pose>
         <scale>1 1 1</scale>
         <link name='link'>
-          <pose>5.00885 0.063156 0.5 0 -0 0</pose>
+          <pose>5 -0 0.499992 0 -0 0</pose>
           <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
+          <acceleration>0 0 -9.8 0 -0 0</acceleration>
+          <wrench>0 0 -9.8 0 -0 0</wrench>
         </link>
       </model>
       <model name='unit_cylinder_p1_clone_2'>
-        <pose>-2.85482 2.88809 0.5 0 -0 0</pose>
+        <pose>-3 3 0.499992 1e-06 1e-06 0</pose>
         <scale>1 1 1</scale>
         <link name='link'>
-          <pose>-2.85482 2.88809 0.5 0 -0 0</pose>
+          <pose>-3 3 0.499992 1e-06 1e-06 0</pose>
           <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
+          <acceleration>0 0 -9.8 0 -0 0</acceleration>
+          <wrench>0 0 -9.8 0 -0 0</wrench>
         </link>
       </model>
       <model name='unit_cylinder_p1_clone_3'>
-        <pose>4.99796 5.04041 0.5 0 -0 0</pose>
+        <pose>5 5 0.499998 -0 -0 -0</pose>
         <scale>1 1 1</scale>
         <link name='link'>
-          <pose>4.99796 5.04041 0.5 0 -0 0</pose>
+          <pose>5 5 0.499998 -0 -0 -0</pose>
           <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
+          <acceleration>0 0 -9.8 0 -0 0</acceleration>
+          <wrench>0 0 -9.8 0 -0 0</wrench>
         </link>
       </model>
       <model name='unit_cylinder_p1_clone_4'>
-        <pose>-0.956185 -4.95084 0.5 0 -0 0</pose>
+        <pose>-1 -5 0.499992 0 -0 0</pose>
         <scale>1 1 1</scale>
         <link name='link'>
-          <pose>-0.956185 -4.95084 0.5 0 -0 0</pose>
+          <pose>-1 -5 0.499992 0 -0 0</pose>
           <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
+          <acceleration>0 0 -9.8 0 -0 0</acceleration>
+          <wrench>0 0 -9.8 0 -0 0</wrench>
         </link>
       </model>
       <model name='unit_cylinder_p1_clone_5'>
-        <pose>2.88322 -4.93914 0.5 0 -0 0</pose>
+        <pose>3 -5 0.499998 -0 -0 -0</pose>
         <scale>1 1 1</scale>
         <link name='link'>
-          <pose>2.88322 -4.93914 0.5 0 -0 0</pose>
+          <pose>3 -5 0.499998 -0 -0 -0</pose>
           <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
+          <acceleration>0 0 -9.8 0 -0 0</acceleration>
+          <wrench>0 0 -9.8 0 -0 0</wrench>
         </link>
       </model>
       <light name='sun'>

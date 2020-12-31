@@ -3,7 +3,7 @@ from sensor_msgs.msg import LaserScan, Imu
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 
-from modules.KalmanFilter import KalmanFilter
+from modules.KalmanFilter import KalmanFilter, EKF_SLAM
 from modules.ParticleFilter import ParticleFilter
 import numpy as np
 from numpy.random import randn
@@ -31,6 +31,16 @@ class Agent:
 
         if ('kalman' in filter_type):
         	self.filter = KalmanFilter()
+        elif ('slam' in filter_type):
+            # nObjects is True. Others I am guessing based on the environment. Should get back on it.
+            # R i am really not sure about as I got it from the cited notebook.
+            nObjects = 8
+            initialPosition = np.array([0, -4, np.pi/2])
+            self.R = np.array([[.001, .0, .0],
+              [.0, .001, .0],
+              [.0, .0, .0001]])
+
+            self.filter = EKF_SLAM(initialPosition, nObjects, self.R)
         else :
         	self.filter = ParticleFilter()
 
@@ -92,7 +102,58 @@ class Agent:
 
             with open('res_predicted_kalman.csv', 'a') as f:
                 f.write(f'{filter_X[0]};{filter_X[1]};{filter_X[2]}\n')
+        elif (self.filter_type == 'slam'):
+            # I want to get the predictions here, but I'm not too sure how this could work.
+            # Working on preprocessing some of the information, but not able to figure it out yet.
+            objectLocations = np.zeros((self.filter.nObjects, 3))
+            objectLocations[:,0] = np.random.uniform(low=-20., high=20., size=self.filter.nObjects)
+            objectLocations[:,1] = np.random.uniform(low=-20., high=20., size=self.filter.nObjects)
+            objectLocations[:,2] = np.arange(self.filter.nObjects)
 
+            
+
+            X_hat = []
+            Conv_hat = []
+
+            dt = .1
+            t = np.arange(0,40.1, dt)
+            v = 1 + .5*np.cos(.4*np.pi*t)
+            w = -.2 + 2*np.cos(1.2*np.pi*t)
+
+            U = np.column_stack([v, w])
+            for t, u in enumerate(U):
+                Z = []
+
+                for i in range(objectLocations.shape[0]):
+                    z = np.zeros(3)
+                    z[0] = np.linalg.norm([[self.current_x, self.current_y] - objectLocations[i, :2]])
+                    z[1] = np.arctan2(objectLocations[i,1] - self.current_y, objectLocations[i,0] - self.current_x) - self.current_z
+
+                    z += np.random.multivariate_normal(np.zeros(3), self.R)
+                    # wrap relative bearing
+                    if z[1] > np.pi:
+                        z[1] = z[1] - 2*np.pi
+                    if z[1] < -np.pi:
+                        z[1] = z[1] + 2*np.pi
+                    z[2] = objectLocations[i,2]
+                    if np.abs(z[1]) < (np.pi/4)/2:
+                        Z.append(z)
+                
+                Z = np.array(Z) 
+
+                x_hat, cov = self.filter.filter(Z, u)
+                X_hat.append(x_hat)
+                Conv_hat.append(cov)
+            
+                with open('slam_res_x_hat_part.csv', 'a') as f:
+                    f.write(f'{x_hat[0]};{x_hat[1]}\n')
+
+                with open('slam_res_conv_part.csv', 'a') as f:
+                    f.write(f'{Conv_hat}\n')
+
+                with open('slam_res_measured_part.csv', 'a') as f:
+                    f.write(f'{self.current_x};{self.current_y}\n')
+            
         else :          
             self.filter.predict([self.x_speed, (self.x_speed/self.spiral_radius)])
             self.filter.update([self.current_x, self.current_y])
