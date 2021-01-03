@@ -34,13 +34,16 @@ class Agent:
         if ('kalman' in filter_type):
         	self.filter = KalmanFilter()
         elif ('slam' in filter_type):
-            # nObjects is True. Others I am guessing based on the environment. Should get back on it.
-            # R i am really not sure about as I got it from the cited notebook.
-            nObjects = 50
+            # Number of static landmarks, we generate them on filter class.
+            nObjects = 70
+
             initialPosition = np.array([3, 3, np.pi/2])
+
+            # N is noise cov matrix
             self.R = np.array([[.001, .0, .0],
               [.0, .001, .0],
               [.0, .0, .0001]])
+
             self.X_hat = []
             self.Conv_hat = []
             self.positions = []
@@ -92,11 +95,15 @@ class Agent:
         """Callback for Odometry messages"""
 
         print (len(self.positions))
-        print (msg.pose.pose)
+
         self.current_x = msg.pose.pose.position.x
         self.current_y = msg.pose.pose.position.y
         self.current_z = msg.pose.pose.position.z
-        self.positions.append([self.current_x, self.current_y, self.current_z])
+        current_theta = msg.pose.pose.orientation.w
+
+        print ([self.current_x, self.current_y, current_theta])
+
+        self.positions.append([self.current_x, self.current_y, current_theta])
 
         if (self.filter_type == 'kalman'):
 
@@ -117,10 +124,8 @@ class Agent:
             with open('slam_res_measured_part.csv', 'a') as f:
                 f.write(f'{self.current_x};{self.current_y}\n')
 
-            # print (len(self.positions))
-            # 101 TODO
             # we calculate after N positions
-            if (len(self.positions) % 501 == 0):
+            if (len(self.positions) == 501):
                 U = self.filter.get_U()
 
                 for t, u in enumerate(U):

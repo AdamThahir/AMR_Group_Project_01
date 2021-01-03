@@ -68,11 +68,10 @@ class EKF_SLAM:
         self.nObjects = nObjects
         self.R = noise_covariance
 
-        # I want to get the predictions here, but I'm not too sure how this could work.
-        # Working on preprocessing some of the information, but not able to figure it out yet.
+        # Creating landmarks
         objectLocations = np.zeros((self.nObjects, 3))
-        objectLocations[:,0] = np.random.uniform(low=-10., high=10., size=self.nObjects)
-        objectLocations[:,1] = np.random.uniform(low=-10., high=10., size=self.nObjects)
+        objectLocations[:,0] = np.random.uniform(low=-20., high=20., size=self.nObjects)
+        objectLocations[:,1] = np.random.uniform(low=-20., high=20., size=self.nObjects)
         objectLocations[:,2] = np.arange(self.nObjects)
 
         with open('landmarks.csv', 'w') as f:
@@ -88,6 +87,8 @@ class EKF_SLAM:
 
         self.dt = .1
 
+        self.ekf = KalmanFilter()
+
     def get_U(self):
         dt = self.dt
         t = np.arange(0,50.1, dt)
@@ -97,6 +98,11 @@ class EKF_SLAM:
         U = np.column_stack([v, w])
 
         return U
+
+    # Z is the observation status
+    # As landmarks are fixed, we can use these measurements to 
+    # calculate our position.
+    # Range is norm
 
     def get_Z(self, X):
         Y = self.objectLocations
@@ -141,7 +147,9 @@ class EKF_SLAM:
         l = z[:,2]
 
         for j,s in enumerate(l):
-            #Measurement Update
+            # Measurement Update
+            # If landmark not seen before, define landmark as current mu, and 
+            # mark it as seen
             s = int(s)
             if self.seen[s] == False:
                 self.mu[3 * (s + 1)] = self.mu[0] + z[j, 0] * np.cos(z[j, 1] + self.mu[2])
