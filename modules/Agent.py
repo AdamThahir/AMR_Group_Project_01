@@ -36,8 +36,8 @@ class Agent:
         elif ('slam' in filter_type):
             # nObjects is True. Others I am guessing based on the environment. Should get back on it.
             # R i am really not sure about as I got it from the cited notebook.
-            nObjects = 8
-            initialPosition = np.array([0, -4, np.pi/2])
+            nObjects = 50
+            initialPosition = np.array([3, 3, np.pi/2])
             self.R = np.array([[.001, .0, .0],
               [.0, .001, .0],
               [.0, .0, .0001]])
@@ -91,6 +91,8 @@ class Agent:
     def OdometryCallback(self, msg):
         """Callback for Odometry messages"""
 
+        print (len(self.positions))
+        print (msg.pose.pose)
         self.current_x = msg.pose.pose.position.x
         self.current_y = msg.pose.pose.position.y
         self.current_z = msg.pose.pose.position.z
@@ -117,7 +119,8 @@ class Agent:
 
             # print (len(self.positions))
             # 101 TODO
-            if (len(self.positions) % 101 == 0):
+            # we calculate after N positions
+            if (len(self.positions) % 501 == 0):
                 U = self.filter.get_U()
 
                 for t, u in enumerate(U):
@@ -126,7 +129,7 @@ class Agent:
                     self.X_hat.append(x_hat)
                     self.Conv_hat.append(Cov)
                 
-                with open('x.csv', 'a') as f:
+                with open('x.csv', 'w') as f:
                     for i in range(len(self.positions)):
                         val = ",".join(str(x) for x in self.positions[i]) + ";"
                         val += ",".join(str(x) for x in self.X_hat[i][:3]) + "\r\n"
@@ -240,9 +243,9 @@ class Agent:
         # print (self.spiral_radius)
         self.publisher.publish(self.move)
 
-        if (time.time() - self.timer_start) >= 10:
-            self.move_switch = True
-            self.timer_start = time.time()
+        # if (time.time() - self.timer_start) >= 10:
+        #     self.move_switch = True
+        #     self.timer_start = time.time()
 
 
     def move_line(self):

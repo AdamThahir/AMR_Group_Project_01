@@ -64,34 +64,33 @@ class EKF_SLAM:
 
         self.seen = [False for i in range(nObjects)]
 
+        # Here objects are landmarks in the map
         self.nObjects = nObjects
         self.R = noise_covariance
 
         # I want to get the predictions here, but I'm not too sure how this could work.
         # Working on preprocessing some of the information, but not able to figure it out yet.
         objectLocations = np.zeros((self.nObjects, 3))
-        objectLocations[:,0] = np.random.uniform(low=-20., high=20., size=self.nObjects)
-        objectLocations[:,1] = np.random.uniform(low=-20., high=20., size=self.nObjects)
+        objectLocations[:,0] = np.random.uniform(low=-10., high=10., size=self.nObjects)
+        objectLocations[:,1] = np.random.uniform(low=-10., high=10., size=self.nObjects)
         objectLocations[:,2] = np.arange(self.nObjects)
+
+        with open('landmarks.csv', 'w') as f:
+            content = ""
+            for landmark in objectLocations:
+                for pos in landmark:
+                    content += str(pos) + ','
+                content += '\n'
+            f.write(content)
 
         self.objectLocations = objectLocations
         self.alpha = np.pi/4
-
-        ''' ????
-        dt = .1
-        t = np.arange(0,40.1, dt)
-        v = 1 + .5*np.cos(.4*np.pi*t)
-        w = -.2 + 2*np.cos(1.2*np.pi*t)
-
-        U = np.column_stack([v, w])''' 
-
-
 
         self.dt = .1
 
     def get_U(self):
         dt = self.dt
-        t = np.arange(0,10.1, dt)
+        t = np.arange(0,50.1, dt)
         v = 1 + .5*np.cos(.4*np.pi*t)
         w = -.2 + 2*np.cos(1.2*np.pi*t)
 
