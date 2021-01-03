@@ -61,6 +61,7 @@ class Agent:
 
         # Publisher
         self.publisher = rospy.Publisher('cmd_vel', Twist, queue_size=queueSize)
+        self.pub_pred = rospy.Publisher('pred', Odometry)
 
 
         self.move = Twist()
@@ -140,6 +141,11 @@ class Agent:
                         val += ",".join(str(x) for x in self.X_hat[i][:3]) + "\r\n"
                         f.write(val)
 
+                        msg_ = Odometry()
+                        msg_.pose.pose.position.x = self.X_hat[i][0]
+                        msg_.pose.pose.position.y = self.X_hat[i][1]
+                        msg_.pose.pose.position.z = self.X_hat[i][2]
+                        self.pub_pred.publish(msg_)
 
                 print ('Xhat size: ', len(self.X_hat), '\npos:', len(self.positions))
 
