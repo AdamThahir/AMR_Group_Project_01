@@ -2,10 +2,12 @@ import numpy as np
 from numpy import dot, tile, linalg, log, exp
 from numpy.linalg import inv, det
 
+import numpy.linalg as la
+
 class KalmanFilter:
     # Main concepts obtained from https://arxiv.org/pdf/1204.0375.pdf
     def __init__(self):
-        dt = 0.01
+        self.dt = 0.01
         sensor_count = 3
         self.X = np.matrix([[0.0], [0.0], [0.0]])
         self.P = np.matrix(np.identity(self.X.shape[0]))
@@ -16,7 +18,7 @@ class KalmanFilter:
         self.R = np.matrix(np.identity(sensor_count))
         self.I = np.matrix(np.identity(self.X.shape[0]))
 
-        self.R *= dt
+        self.R *= self.dt
         self.is_first = True
 
 
@@ -62,11 +64,75 @@ class EKF_SLAM:
 
         self.seen = [False for i in range(nObjects)]
 
+        # Here objects are landmarks in the map
         self.nObjects = nObjects
         self.R = noise_covariance
 
+        # Creating landmarks
+
+        objectLocations = np.zeros((self.nObjects, 3))
+        objectLocations[:,0] = np.random.uniform(low=-20., high=20., size=self.nObjects)
+        objectLocations[:,1] = np.random.uniform(low=-20., high=20., size=self.nObjects)
+        objectLocations[:,2] = np.arange(self.nObjects)
+
+        with open('landmarks.csv', 'w') as f:
+            content = ""
+            for landmark in objectLocations:
+                for pos in landmark:
+                    content += str(pos) + ','
+                content += '\n'
+            f.write(content)
+
+        self.objectLocations = objectLocations
+        self.alpha = np.pi/4
+
+        self.dt = .1
+
+        self.ekf = KalmanFilter()
+
+    def get_U(self):
+        # input sequence, generated once
+        dt = self.dt
+        t = np.arange(0,50.1, dt)
+        v = 1 + .5*np.cos(.4*np.pi*t)
+        w = -.2 + 2*np.cos(1.2*np.pi*t)
+
+        U = np.column_stack([v, w])
+
+        return U
+
+    # Z is the observation status
+    # As landmarks are fixed, we can use these measurements to 
+    # calculate our position.
+    # Range is norm
+
+    def get_Z(self, X):
+        Y = self.objectLocations
+        
+        Z = []
+        
+        for i in range(Y.shape[0]):
+            z = np.zeros(3)
+            z[0] = np.linalg.norm(X[:2] - Y[i,:2])
+            z[1] = np.arctan2(Y[i,1] - X[1], Y[i,0] - X[0]) - X[2]
+            
+            z += np.random.multivariate_normal(np.zeros(3), self.R)
+            # wrap relative bearing
+            if z[1] > np.pi:
+                z[1] = z[1] - 2*np.pi
+            if z[1] < -np.pi:
+                z[1] = z[1] + 2*np.pi
+            z[2] = Y[i,2]
+            if np.abs(z[1]) < self.alpha/2:
+                Z.append(z)
+        
+        Z = np.array(Z) 
+
+        return Z
+
     def filter(self, z, u):
         """filters the slam problem over a single time step"""
+
 
         self.mu[0:3] = self.non_linear_state_transition_handler(self.mu[0:3],u)
         Fx = np.matrix(np.zeros((3, 3 * self.nObjects + 3)))
@@ -84,7 +150,9 @@ class EKF_SLAM:
         l = z[:,2]
 
         for j,s in enumerate(l):
-            #Measurement Update
+            # Measurement Update
+            # If landmark not seen before, define landmark as current mu, and 
+            # mark it as seen
             s = int(s)
             if self.seen[s] == False:
                 self.mu[3 * (s + 1)] = self.mu[0] + z[j, 0] * np.cos(z[j, 1] + self.mu[2])
@@ -106,12 +174,16 @@ class EKF_SLAM:
             H = self.jacobian_measurement_state_handler(self.mu[:3],y,u) * Fxj
             K = self.cov * H.T * (la.inv(H * self.cov * H.T + self.R))
 
+            # here we calculate the difference between the expectation z hat and
+            # real observation z[j]
             innovation = z[j] - z_hat
             if innovation[1] > np.pi:
                 innovation[1] -= 2 * np.pi
             elif innovation[1] < -np.pi:
                 innovation += 2 * np.pi
             innovation = np.matrix(innovation).T
+
+            # update mu and cov matrices
             update = np.array(K * innovation).flatten()
             self.mu += update
             self.cov = (np.eye(3 * self.nObjects + 3) - K * H).dot(self.cov)
@@ -126,12 +198,12 @@ class EKF_SLAM:
         w = u[1]
         stheta = np.sin(x[2])
         ctheta = np.cos(x[2])
-        sthetap = np.sin(x[2] + dt*w)
-        cthetap = np.cos(x[2] + dt*w)
+        sthetap = np.sin(x[2] + self.dt*w)
+        cthetap = np.cos(x[2] + self.dt*w)
 
         xp[0] = x[0] - v/w*stheta + v/w*sthetap
         xp[1] = x[1] + v/w*ctheta - v/w*cthetap
-        xp[2] = x[2] + w*dt
+        xp[2] = x[2] + w*self.dt
         return xp
 
     def non_linear_measurement_model_handler(self, x, y, u):
@@ -154,8 +226,8 @@ class EKF_SLAM:
         w = u[1]
         stheta = np.sin(x[2])
         ctheta = np.cos(x[2])
-        sthetap = np.sin(x[2] + dt*w)
-        cthetap = np.cos(x[2] + dt*w)
+        sthetap = np.sin(x[2] + self.dt*w)
+        cthetap = np.cos(x[2] + self.dt*w)
         
         F = np.matrix(np.zeros((n,n)))
         F[0,2] = -v/w*ctheta + v/w*cthetap
@@ -170,15 +242,15 @@ class EKF_SLAM:
         w = u[1]
         stheta = np.sin(x[2])
         ctheta = np.cos(x[2])
-        sthetap = np.sin(x[2] + dt*w)
-        cthetap = np.cos(x[2] + dt*w)
+        sthetap = np.sin(x[2] + self.dt*w)
+        cthetap = np.cos(x[2] + self.dt*w)
         
         G = np.matrix(np.zeros((n,k)))
         G[0,0] = (-stheta + sthetap)/w
-        G[0,1] = v*(stheta-sthetap)/(w**2) + v*(ctheta*dt)/w
+        G[0,1] = v*(stheta-sthetap)/(w**2) + v*(ctheta*self.dt)/w
         G[1,0] = (ctheta - cthetap)/w
-        G[1,1] = -v*(ctheta - cthetap)/(w**2) + v*(stheta*dt)/w
-        G[2,1] = dt
+        G[1,1] = -v*(ctheta - cthetap)/(w**2) + v*(stheta*self.dt)/w
+        G[2,1] = self.dt
         return G
 
     def jacobian_measurement_state_handler(self, x, y, u):
@@ -209,6 +281,8 @@ class EKF_SLAM:
         v = u[0]
         w = u[1]
         Q = np.matrix(np.zeros((k,k)))
+
+        alpha = np.array([.1, .01, .01, .1])
         Q[0,0] = alpha[0]*v**2 + alpha[1]*w**2
         Q[1,1] = alpha[2]*v**2 + alpha[3]*w**2
         return Q
